@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
@@ -8,6 +8,7 @@ import { useApp } from "@/hooks/useAppStore";
 import { GlassButton } from "./GlassButton";
 import { PITCH_STEPS } from "@/lib/pitch/pitch-steps";
 import { DEMO_COACH_PROMPT } from "@/lib/constants/demo";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 interface PitchWalkthroughModalProps {
   open: boolean;
@@ -27,6 +28,10 @@ const STEP_HINTS: Record<string, string> = {
   burnout: "See the animated burnout meter with factor breakdown and tips.",
   triggers: "View auto-detected stress triggers and the 43% mock-test breakdown chart.",
   analytics: "Explore 8 production-ready charts including mood trend and study heatmap.",
+  mindfulness: "Try adaptive breathing and grounding exercises matched to your triggers.",
+  motivation: "See daily encouragement and coach responses with motivational closings.",
+  academic: "Track study hours, mock tests, and confidence growth in analytics.",
+  "hyper-insights": "Read hyper-personalized AI insights and the signature hero quote.",
 };
 
 export function PitchWalkthroughModal({
@@ -37,6 +42,19 @@ export function PitchWalkthroughModal({
   const router = useRouter();
   const { markPitchStepComplete, sendCoachMessage } = useApp();
   const [stepIndex, setStepIndex] = useState(0);
+  const containerRef = useFocusTrap(open);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setStepIndex(0);
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -74,7 +92,7 @@ export function PitchWalkthroughModal({
         }}
         aria-hidden="true"
       />
-      <div className="glass-strong relative w-full max-w-lg rounded-[28px] p-6 shadow-xl">
+      <div ref={containerRef} className="glass-strong relative w-full max-w-lg rounded-[28px] p-6 shadow-xl">
         <button
           type="button"
           onClick={() => {

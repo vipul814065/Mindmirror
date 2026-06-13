@@ -65,10 +65,12 @@ export function saveAppData(data: AppData): void {
   if (typeof window === "undefined") return;
 
   const validated = validateAppData(data);
-  const toSave = validated ?? data;
+  if (!validated) {
+    throw new StorageError("Data failed validation and could not be saved.");
+  }
 
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(validated));
   } catch (error) {
     if (
       error instanceof DOMException &&

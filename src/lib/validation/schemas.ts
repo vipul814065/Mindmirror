@@ -27,20 +27,27 @@ export const moodEntrySchema = z.object({
   triggers: z.array(triggerTagSchema).max(8),
 });
 
+export const journalAnalysisSchema = z.object({
+  sentiment: z.number().min(-1).max(1),
+  sentimentLabel: z.enum(["positive", "neutral", "negative"]),
+  moodScore: z.number().min(1).max(5),
+  stressLevel: z.enum(["Low", "Medium", "High"]),
+  burnoutRiskPercent: z.number().min(0).max(100),
+  confidenceScore: z.number().min(0).max(100),
+  triggers: z.array(triggerTagSchema),
+  themes: z.array(z.string()),
+  triggerSummary: z.string(),
+  reflection: z.string(),
+  coachingTip: z.string(),
+  recommendation: z.string(),
+  aiReasoning: z.string(),
+});
+
 export const journalEntrySchema = z.object({
   id: z.string().min(1),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   content: z.string().min(10, "Journal must be at least 10 characters").max(5000),
-  analysis: z
-    .object({
-      sentiment: z.number().min(-1).max(1),
-      sentimentLabel: z.enum(["positive", "neutral", "negative"]),
-      triggers: z.array(triggerTagSchema),
-      themes: z.array(z.string()),
-      reflection: z.string(),
-      coachingTip: z.string(),
-    })
-    .optional(),
+  analysis: journalAnalysisSchema.optional(),
 });
 
 export const coachMessageSchema = z.object({

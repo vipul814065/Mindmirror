@@ -9,12 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type {
-  AppData,
-  CoachMessage,
-  JournalEntry,
-  MoodEntry,
-} from "@/types/wellness";
+import type { AppData, MoodEntry } from "@/types/wellness";
 import {
   getDefaultData,
   loadAppData,
@@ -26,25 +21,20 @@ import {
   ImportError,
 } from "@/lib/storage/local-store";
 import { createSeedData } from "@/lib/ai/seed-data";
-import {
-  moodEntrySchema,
-  journalEntrySchema,
-  coachMessageSchema,
-  appSettingsSchema,
-} from "@/lib/validation/schemas";
-import {
-  analyzeJournal,
-  getCoachResponse,
-  generateActionPlan,
-} from "@/lib/ai/mock-engine";
-import { calculateBurnoutScore, getTopTriggers } from "@/lib/scoring/burnout";
-import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
-import { sanitizeUserInput } from "@/lib/ai/safety";
+import { calculateBurnoutScore } from "@/lib/scoring/burnout";
+import { resetRateLimit } from "@/lib/rate-limit";
 import {
   loadPitchCompletedSteps,
   markPitchStep,
   resetPitchSteps,
 } from "@/lib/pitch/pitch-storage";
+import {
+  createMoodEntry,
+  createJournalEntry,
+  createCoachExchange,
+  mergeSettings,
+  buildActionPlan,
+} from "@/hooks/app-store-actions";
 
 interface AppContextValue {
   data: AppData;
@@ -69,13 +59,6 @@ interface AppContextValue {
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
-
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX = 10;
-
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<AppData>(getDefaultData);
@@ -120,72 +103,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addMood = useCallback((entry: Omit<MoodEntry, "id">) => {
-    const mood: MoodEntry = { ...entry, id: generateId() };
-    const result = moodEntrySchema.safeParse(mood);
-    if (!result.success) {
-      setValidationError(result.error.issues[0]?.message ?? "Invalid mood entry.");
+    const result = createMoodEntry(entry);
+    if ("error" in result) {
+      setValidationError(result.error);
       return;
     }
     setValidationError(null);
-    persist((prev) => ({ ...prev, moods: [...prev.moods, mood] }));
+    persist((prev) => ({ ...prev, moods: [...prev.moods, result.mood] }));
   }, [persist]);
 
   const addJournal = useCallback((content: string) => {
-    if (!checkRateLimit("journal", RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) {
-      setValidationError("Please wait a moment before submitting another journal entry.");
-      return;
-    }
-
-    const sanitized = sanitizeUserInput(content, 5000);
-    const analysis = analyzeJournal(sanitized);
-    const journal: JournalEntry = {
-      id: generateId(),
-      date: new Date().toISOString().split("T")[0],
-      content: sanitized,
-      analysis,
-    };
-
-    const result = journalEntrySchema.safeParse(journal);
-    if (!result.success) {
-      setValidationError(result.error.issues[0]?.message ?? "Invalid journal entry.");
+    const result = createJournalEntry(content);
+    if ("error" in result) {
+      setValidationError(result.error);
       return;
     }
     setValidationError(null);
-    persist((prev) => ({ ...prev, journals: [journal, ...prev.journals] }));
+    persist((prev) => ({ ...prev, journals: [result.journal, ...prev.journals] }));
   }, [persist]);
 
   const sendCoachMessage = useCallback((content: string) => {
-    if (!checkRateLimit("coach", RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) {
-      setValidationError("Please wait a moment before sending another message.");
-      return;
-    }
-
-    const sanitized = sanitizeUserInput(content, 2000);
-    const userMsg: CoachMessage = {
-      id: generateId(),
-      role: "user",
-      content: sanitized,
-      timestamp: new Date().toISOString(),
-    };
-
-    const userResult = coachMessageSchema.safeParse(userMsg);
-    if (!userResult.success) {
-      setValidationError(userResult.error.issues[0]?.message ?? "Invalid message.");
-      return;
-    }
-
-    setValidationError(null);
     persist((prev) => {
-      const response = getCoachResponse(sanitized, prev.settings.examType);
-      const assistantMsg: CoachMessage = {
-        id: generateId(),
-        role: "assistant",
-        content: response,
-        timestamp: new Date().toISOString(),
-      };
+      const result = createCoachExchange(content, prev.settings.examType);
+      if ("error" in result) {
+        setValidationError(result.error);
+        return prev;
+      }
+      setValidationError(null);
       return {
         ...prev,
-        coachMessages: [...prev.coachMessages, userMsg, assistantMsg],
+        coachMessages: [...prev.coachMessages, result.userMsg, result.assistantMsg],
       };
     });
   }, [persist]);
@@ -200,24 +147,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [persist]);
 
   const regenerateActionPlan = useCallback(() => {
-    persist((prev) => {
-      const burnout = calculateBurnoutScore(prev.moods, prev.journals);
-      const triggers = getTopTriggers(prev.moods, prev.journals);
-      const plan = generateActionPlan(burnout.score, triggers);
-      return { ...prev, actionPlan: plan };
-    });
+    persist((prev) => buildActionPlan(prev));
   }, [persist]);
 
   const updateSettings = useCallback((settings: Partial<AppData["settings"]>) => {
     persist((prev) => {
-      const merged = { ...prev.settings, ...settings };
-      const result = appSettingsSchema.safeParse(merged);
-      if (!result.success) {
-        setValidationError(result.error.issues[0]?.message ?? "Invalid settings.");
+      const result = mergeSettings(prev, settings);
+      if ("error" in result) {
+        setValidationError(result.error);
         return prev;
       }
       setValidationError(null);
-      return { ...prev, settings: result.data };
+      return result;
     });
   }, [persist]);
 

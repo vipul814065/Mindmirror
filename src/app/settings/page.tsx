@@ -9,6 +9,7 @@ import { GlassInput } from "@/components/ui/GlassInput";
 import { ProfileCard } from "@/components/ui/ProfileCard";
 import { ImportDataModal } from "@/components/ui/ImportDataModal";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ChallengeRequirementsCoverage } from "@/components/ui/ChallengeRequirementsCoverage";
 import { EXAM_TYPES } from "@/lib/constants/exams";
 
 export default function SettingsPage() {
@@ -105,6 +106,8 @@ export default function SettingsPage() {
         onClose={() => setImportOpen(false)}
         onImport={importData}
       />
+
+      <ChallengeRequirementsCoverage />
     </div>
   );
 }

@@ -1,15 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
 import { useApp } from "@/hooks/useAppStore";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { InsightCard } from "@/components/ui/InsightCard";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { WeeklyProgressCard } from "@/components/ui/WeeklyProgressCard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { generateWeeklyInsight, getHeroInsightQuote } from "@/lib/ai/mock-engine";
 import { loadChart } from "@/lib/charts/load-chart";
 import { HeroInsightCard } from "@/components/ui/HeroInsightCard";
+import { useWeeklyInsight } from "@/hooks/useWeeklyInsight";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 const ProductivityChart = loadChart(
@@ -30,16 +29,10 @@ const TREND_CONFIG = {
 export default function WeeklyInsightsPage() {
   const { data } = useApp();
   const analytics = data.analytics;
-  const insight = useMemo(
-    () => generateWeeklyInsight(data.moods, data.journals, analytics),
-    [data.moods, data.journals, analytics],
-  );
-  const heroQuote = useMemo(
-    () => getHeroInsightQuote(data.moods, data.journals, analytics),
-    [data.moods, data.journals, analytics],
-  );
+  const { insight, heroQuote } = useWeeklyInsight();
   const trend = TREND_CONFIG[insight.moodTrend];
   const TrendIcon = trend.icon;
+  const aiInsights = analytics?.aiInsights ?? insight.patterns;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -68,7 +61,32 @@ export default function WeeklyInsightsPage() {
 
       {analytics && <WeeklyProgressCard progress={analytics.weeklyProgress} />}
 
+      {!analytics && (
+        <GlassCard>
+          <p className="text-sm text-subtle">
+            Load sample data on the dashboard for full analytics charts, or keep logging mood and
+            journal entries for AI-generated insights below.
+          </p>
+        </GlassCard>
+      )}
+
       <HeroInsightCard quote={heroQuote} />
+
+      <section aria-labelledby="hyper-insights-heading">
+        <h2
+          id="hyper-insights-heading"
+          className="mb-4 font-display text-lg font-semibold text-foreground"
+        >
+          Hyper-Personalized AI Insights
+        </h2>
+        <GlassCard className="space-y-3">
+          {aiInsights.map((item) => (
+            <p key={item} className="text-sm text-foreground">
+              {item}
+            </p>
+          ))}
+        </GlassCard>
+      </section>
 
       <InsightCard patterns={insight.patterns} summary={insight.summary} heroQuote={heroQuote} />
 

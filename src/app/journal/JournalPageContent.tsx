@@ -8,49 +8,9 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { GlassButton } from "@/components/ui/GlassButton";
 import { GlassTextarea } from "@/components/ui/GlassTextarea";
 import { GlassSearch } from "@/components/ui/GlassSearch";
-import { GlassBadge } from "@/components/ui/GlassBadge";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { JournalAnalysisPanel } from "@/components/journal/JournalAnalysisPanel";
 import { DEMO_JOURNAL_ENTRY } from "@/lib/constants/demo";
-import type { JournalAnalysis } from "@/types/wellness";
-
-const SENTIMENT_VARIANT: Record<
-  JournalAnalysis["sentimentLabel"],
-  "success" | "warning" | "default"
-> = {
-  positive: "success",
-  neutral: "default",
-  negative: "warning",
-};
-
-function JournalAnalysisPanel({ analysis }: { analysis: JournalAnalysis }) {
-  return (
-    <div className="space-y-3 rounded-2xl border-l-4 border-l-primary/40 bg-primary-subtle p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-xs font-medium text-primary">AI Analysis</p>
-        <GlassBadge variant={SENTIMENT_VARIANT[analysis.sentimentLabel]}>
-          {analysis.sentimentLabel} · {analysis.sentiment}/5
-        </GlassBadge>
-      </div>
-      <p className="text-sm text-muted">{analysis.reflection}</p>
-      {analysis.triggers.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {analysis.triggers.map((t) => (
-            <GlassBadge key={t} variant="primary">
-              {t}
-            </GlassBadge>
-          ))}
-        </div>
-      )}
-      {analysis.themes.length > 0 && (
-        <p className="text-xs text-subtle">Themes: {analysis.themes.join(", ")}</p>
-      )}
-      <div className="rounded-xl bg-surface px-3 py-2">
-        <p className="text-xs font-medium text-primary">Coaching tip</p>
-        <p className="mt-1 text-sm text-foreground">{analysis.coachingTip}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function JournalPageContent() {
   const { data, addJournal, validationError } = useApp();
@@ -105,11 +65,32 @@ export default function JournalPageContent() {
             <GlassButton variant="outline" size="sm" onClick={loadDemoEntry}>
               Try demo entry
             </GlassButton>
-            <GlassButton onClick={handleSubmit} disabled={content.trim().length < 10}>
+            <GlassButton onClick={handleSubmit} disabled={content.trim().length < 10 || analyzing}>
               {analyzing ? "Analyzing…" : "Analyze Entry"}
             </GlassButton>
           </div>
         </GlassCard>
+
+        {analyzing && (
+          <JournalAnalysisPanel
+            analysis={{
+              sentiment: 0,
+              sentimentLabel: "neutral",
+              moodScore: 3,
+              stressLevel: "Medium",
+              burnoutRiskPercent: 50,
+              confidenceScore: 50,
+              triggers: [],
+              themes: [],
+              triggerSummary: "",
+              reflection: "",
+              coachingTip: "",
+              recommendation: "",
+              aiReasoning: "",
+            }}
+            loading
+          />
+        )}
 
         {data.journals.length === 0 ? (
           <GlassCard>

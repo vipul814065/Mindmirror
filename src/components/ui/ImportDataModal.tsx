@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GlassButton } from "@/components/ui/GlassButton";
 import { GlassTextarea } from "@/components/ui/GlassTextarea";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 const MAX_IMPORT_BYTES = 512 * 1024;
 
@@ -15,6 +16,16 @@ interface ImportDataModalProps {
 export function ImportDataModal({ open, onClose, onImport }: ImportDataModalProps) {
   const [json, setJson] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const containerRef = useFocusTrap(open);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -40,7 +51,7 @@ export function ImportDataModal({ open, onClose, onImport }: ImportDataModalProp
       aria-modal="true"
       aria-labelledby="import-dialog-title"
     >
-      <div className="glass-strong w-full max-w-lg space-y-4 rounded-2xl p-6">
+      <div ref={containerRef} className="glass-strong w-full max-w-lg space-y-4 rounded-2xl p-6">
         <h2 id="import-dialog-title" className="text-lg font-semibold text-foreground">
           Import Backup Data
         </h2>

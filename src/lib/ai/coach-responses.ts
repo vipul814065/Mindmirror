@@ -1,5 +1,5 @@
 import type { ExamType } from "@/types/wellness";
-import { validateAIOutput } from "@/lib/ai/safety";
+import { validateAIOutput, wrapUserContext } from "@/lib/ai/safety";
 
 const COACH_RESPONSES: { keywords: string[]; response: string }[] = [
   {
@@ -58,13 +58,23 @@ export const QUICK_REPLIES = [
   "Not sleeping well",
 ];
 
+const MOTIVATIONAL_CLOSINGS = [
+  " You're doing better than you think — keep showing up.",
+  " One step at a time, you're building the future you want.",
+  " Your effort matters, even on hard days.",
+  " Remember: progress isn't always visible, but it's always happening.",
+];
+
 export function getCoachResponse(userMessage: string, examType?: ExamType): string {
-  const lower = userMessage.toLowerCase();
+  const wrapped = wrapUserContext(userMessage);
+  const lower = wrapped.toLowerCase();
 
   for (const { keywords, response } of COACH_RESPONSES) {
     if (keywords.some((kw) => lower.includes(kw))) {
       const prefix = examType ? (EXAM_SPECIFIC_PREFIX[examType] ?? "") : "";
-      return validateAIOutput(`${prefix}${response}`);
+      const closing =
+        MOTIVATIONAL_CLOSINGS[Math.abs(userMessage.length) % MOTIVATIONAL_CLOSINGS.length];
+      return validateAIOutput(`${prefix}${response}${closing}`);
     }
   }
 

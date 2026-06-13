@@ -23,10 +23,17 @@ export interface MoodEntry {
 export interface JournalAnalysis {
   sentiment: number;
   sentimentLabel: "positive" | "neutral" | "negative";
+  moodScore: number;
+  stressLevel: "Low" | "Medium" | "High";
+  burnoutRiskPercent: number;
+  confidenceScore: number;
   triggers: TriggerTag[];
   themes: string[];
+  triggerSummary: string;
   reflection: string;
   coachingTip: string;
+  recommendation: string;
+  aiReasoning: string;
 }
 
 export interface JournalEntry {

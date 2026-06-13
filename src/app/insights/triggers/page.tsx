@@ -39,7 +39,7 @@ export default function TriggersPage() {
         description="Automatically identified from your moods and journal entries."
       />
 
-      {analytics && (
+      {analytics ? (
         <div>
           <h2 className="mb-4 font-display text-lg font-semibold text-foreground">
             Stress Trigger Breakdown
@@ -48,6 +48,13 @@ export default function TriggersPage() {
             <StressBreakdownChart data={analytics.stressTriggerBreakdown} />
           </ErrorBoundary>
         </div>
+      ) : (
+        <GlassCard>
+          <p className="py-4 text-center text-sm text-subtle">
+            Load sample data on the dashboard for the full stress trigger breakdown chart, or log
+            moods with trigger tags to see detected patterns below.
+          </p>
+        </GlassCard>
       )}
 
       <ErrorBoundary fallbackTitle="Chart unavailable">
