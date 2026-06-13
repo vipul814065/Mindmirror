@@ -1,0 +1,58 @@
+"use client";
+
+import type { MoodLevel } from "@/types/wellness";
+
+const MOODS: { value: MoodLevel; emoji: string; label: string }[] = [
+  { value: 1, emoji: "😔", label: "Struggling" },
+  { value: 2, emoji: "😟", label: "Low" },
+  { value: 3, emoji: "😐", label: "Okay" },
+  { value: 4, emoji: "🙂", label: "Good" },
+  { value: 5, emoji: "😊", label: "Great" },
+];
+
+interface MoodPickerProps {
+  value: MoodLevel | null;
+  onChange: (mood: MoodLevel) => void;
+}
+
+export function MoodPicker({ value, onChange }: MoodPickerProps) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Select your mood level from 1 to 5"
+      className="flex flex-wrap justify-center gap-3"
+    >
+      {MOODS.map((mood) => {
+        const selected = value === mood.value;
+        return (
+          <button
+            key={mood.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            aria-label={`${mood.label}, level ${mood.value} of 5`}
+            onClick={() => onChange(mood.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onChange(mood.value);
+              }
+            }}
+            className={`flex flex-col items-center gap-1 rounded-2xl px-4 py-3 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary-light ${
+              selected
+                ? "glass-strong scale-105 ring-2 ring-primary/30 bg-primary-subtle"
+                : "glass-surface hover:bg-surface"
+            }`}
+          >
+            <span className="text-3xl" aria-hidden="true">
+              {mood.emoji}
+            </span>
+            <span className="text-xs text-muted">{mood.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export { MOODS };
