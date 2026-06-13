@@ -16,6 +16,8 @@ import {
   detectTriggerPatterns,
   generateWeeklyInsight,
   getDemoInsights,
+  getHeroInsightQuote,
+  HERO_INSIGHT_QUOTE,
 } from "@/lib/ai/insights";
 
 export interface WellnessAIEngine {
@@ -47,4 +49,6 @@ export {
   detectTriggerPatterns,
   getDemoInsights,
   detectTriggers,
+  getHeroInsightQuote,
+  HERO_INSIGHT_QUOTE,
 };

@@ -16,6 +16,9 @@ function getWeekStart(date: Date): string {
   return d.toISOString().split("T")[0];
 }
 
+export const HERO_INSIGHT_QUOTE =
+  "You feel stressed after every mock test… motivation recovers within 2 days.";
+
 export function getDemoInsights(analytics?: DemoAnalytics): string[] | null {
   if (analytics?.aiInsights?.length) return analytics.aiInsights;
   return null;
@@ -117,6 +120,21 @@ export function generateWeeklyInsight(
         : `Your mood stayed steady this week (avg ${avgMood.toFixed(1)}/5). Awareness is the foundation of growth.`;
 
   return { weekStart, patterns, summary, moodTrend, avgMood };
+}
+
+export function getHeroInsightQuote(
+  moods: MoodEntry[],
+  journals: JournalEntry[],
+  analytics?: DemoAnalytics,
+): string {
+  const insight = generateWeeklyInsight(moods, journals, analytics);
+  const hasMockPattern = insight.patterns.some(
+    (p) =>
+      p.toLowerCase().includes("mock test") ||
+      p.toLowerCase().includes("stressed after"),
+  );
+  if (hasMockPattern) return HERO_INSIGHT_QUOTE;
+  return insight.patterns[0] ?? HERO_INSIGHT_QUOTE;
 }
 
 export function detectTriggerPatterns(

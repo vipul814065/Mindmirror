@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useApp } from "@/hooks/useAppStore";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { GlassButton } from "@/components/ui/GlassButton";
 import { GlassBadge } from "@/components/ui/GlassBadge";
 import { ProfileCard } from "@/components/ui/ProfileCard";
 import { MetricCard } from "@/components/ui/MetricCard";
@@ -14,9 +13,11 @@ import { ActivityFeed } from "@/components/ui/ActivityFeed";
 import { NotificationList } from "@/components/ui/NotificationList";
 import { RecommendationCard } from "@/components/ui/RecommendationCard";
 import { InsightCard } from "@/components/ui/InsightCard";
+import { HeroInsightCard } from "@/components/ui/HeroInsightCard";
+import { CompetitionPitchPanel } from "@/components/ui/CompetitionPitchPanel";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { generateWeeklyInsight } from "@/lib/ai/mock-engine";
+import { generateWeeklyInsight, getHeroInsightQuote } from "@/lib/ai/mock-engine";
 import { getMoodDisplay } from "@/components/ui/MoodPicker";
 import { EXAM_TYPES } from "@/lib/constants/exams";
 import { loadChart } from "@/lib/charts/load-chart";
@@ -24,7 +25,6 @@ import {
   Smile,
   BookOpen,
   MessageCircle,
-  Database,
   Heart,
   Flame,
   Focus,
@@ -53,6 +53,10 @@ export default function DashboardPage() {
     () => generateWeeklyInsight(data.moods, data.journals, analytics),
     [data.moods, data.journals, analytics],
   );
+  const heroQuote = useMemo(
+    () => getHeroInsightQuote(data.moods, data.journals, analytics),
+    [data.moods, data.journals, analytics],
+  );
   const h = new Date().getHours();
   const greet = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
   const todayMoodDisplay = todayMood ? getMoodDisplay(todayMood.mood) : null;
@@ -62,18 +66,17 @@ export default function DashboardPage() {
       <PageHeader
         title={`${greet}, ${data.settings.userName}`}
         description={data.settings.goal ?? `Preparing for ${data.settings.examType}`}
-      >
-        <GlassButton variant="outline" size="sm" onClick={loadSampleData}>
-          <Database className="h-4 w-4" aria-hidden="true" />
-          Reset Demo
-        </GlassButton>
-      </PageHeader>
+      />
 
       {storageError && (
         <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
           {storageError}
         </div>
       )}
+
+      <CompetitionPitchPanel onLoadSample={loadSampleData} />
+
+      <HeroInsightCard quote={heroQuote} />
 
       <ProfileCard
         name={data.settings.userName}
@@ -195,7 +198,11 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <InsightCard patterns={insight.patterns.slice(0, 4)} summary={insight.summary} />
+      <InsightCard
+        patterns={insight.patterns.slice(0, 4)}
+        summary={insight.summary}
+        heroQuote={heroQuote}
+      />
 
       {analytics && (
         <div className="grid gap-6 lg:grid-cols-2">

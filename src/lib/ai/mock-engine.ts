@@ -7,4 +7,6 @@ export {
   detectTriggerPatterns,
   getDemoInsights,
   detectTriggers,
+  getHeroInsightQuote,
+  HERO_INSIGHT_QUOTE,
 } from "@/lib/ai/engine";

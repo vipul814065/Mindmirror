@@ -40,12 +40,18 @@ import {
 import { calculateBurnoutScore, getTopTriggers } from "@/lib/scoring/burnout";
 import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
 import { sanitizeUserInput } from "@/lib/ai/safety";
+import {
+  loadPitchCompletedSteps,
+  markPitchStep,
+  resetPitchSteps,
+} from "@/lib/pitch/pitch-storage";
 
 interface AppContextValue {
   data: AppData;
   isLoaded: boolean;
   storageError: string | null;
   validationError: string | null;
+  pitchCompletedSteps: string[];
   addMood: (entry: Omit<MoodEntry, "id">) => void;
   addJournal: (content: string) => void;
   sendCoachMessage: (content: string) => void;
@@ -53,6 +59,8 @@ interface AppContextValue {
   regenerateActionPlan: () => void;
   updateSettings: (settings: Partial<AppData["settings"]>) => void;
   loadSampleData: () => void;
+  markPitchStepComplete: (stepId: string) => void;
+  resetPitchProgress: () => void;
   exportData: () => string;
   importData: (json: string) => void;
   clearData: () => void;
@@ -74,6 +82,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [pitchCompletedSteps, setPitchCompletedSteps] = useState<string[]>(() =>
+    typeof window !== "undefined" ? loadPitchCompletedSteps() : [],
+  );
 
   useEffect(() => {
     const loaded = loadAppData();
@@ -214,6 +225,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     persist(createSeedData());
   }, [persist]);
 
+  const markPitchStepComplete = useCallback((stepId: string) => {
+    setPitchCompletedSteps(markPitchStep(stepId));
+  }, []);
+
+  const resetPitchProgress = useCallback(() => {
+    resetPitchSteps();
+    setPitchCompletedSteps([]);
+  }, []);
+
   const exportDataFn = useCallback(() => exportAppData(data), [data]);
 
   const importDataFn = useCallback(
@@ -235,9 +255,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const clearDataFn = useCallback(() => {
     clearAppData();
     resetRateLimit();
+    resetPitchSteps();
     setData(getDefaultData());
     setStorageError(null);
     setValidationError(null);
+    setPitchCompletedSteps([]);
   }, []);
 
   const clearValidationError = useCallback(() => {
@@ -255,6 +277,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       isLoaded,
       storageError,
       validationError,
+      pitchCompletedSteps,
       addMood,
       addJournal,
       sendCoachMessage,
@@ -262,6 +285,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       regenerateActionPlan,
       updateSettings,
       loadSampleData,
+      markPitchStepComplete,
+      resetPitchProgress,
       exportData: exportDataFn,
       importData: importDataFn,
       clearData: clearDataFn,
@@ -273,6 +298,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       isLoaded,
       storageError,
       validationError,
+      pitchCompletedSteps,
       addMood,
       addJournal,
       sendCoachMessage,
@@ -280,6 +306,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       regenerateActionPlan,
       updateSettings,
       loadSampleData,
+      markPitchStepComplete,
+      resetPitchProgress,
       exportDataFn,
       importDataFn,
       clearDataFn,

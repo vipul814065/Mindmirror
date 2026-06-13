@@ -7,8 +7,9 @@ import { InsightCard } from "@/components/ui/InsightCard";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { WeeklyProgressCard } from "@/components/ui/WeeklyProgressCard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { generateWeeklyInsight } from "@/lib/ai/mock-engine";
+import { generateWeeklyInsight, getHeroInsightQuote } from "@/lib/ai/mock-engine";
 import { loadChart } from "@/lib/charts/load-chart";
+import { HeroInsightCard } from "@/components/ui/HeroInsightCard";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 const ProductivityChart = loadChart(
@@ -31,6 +32,10 @@ export default function WeeklyInsightsPage() {
   const analytics = data.analytics;
   const insight = useMemo(
     () => generateWeeklyInsight(data.moods, data.journals, analytics),
+    [data.moods, data.journals, analytics],
+  );
+  const heroQuote = useMemo(
+    () => getHeroInsightQuote(data.moods, data.journals, analytics),
     [data.moods, data.journals, analytics],
   );
   const trend = TREND_CONFIG[insight.moodTrend];
@@ -63,7 +68,9 @@ export default function WeeklyInsightsPage() {
 
       {analytics && <WeeklyProgressCard progress={analytics.weeklyProgress} />}
 
-      <InsightCard patterns={insight.patterns} summary={insight.summary} />
+      <HeroInsightCard quote={heroQuote} />
+
+      <InsightCard patterns={insight.patterns} summary={insight.summary} heroQuote={heroQuote} />
 
       {analytics && (
         <div className="grid gap-6 lg:grid-cols-2">

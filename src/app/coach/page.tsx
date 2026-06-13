@@ -6,8 +6,10 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { GlassButton } from "@/components/ui/GlassButton";
 import { GlassInput } from "@/components/ui/GlassInput";
+import { GlassBadge } from "@/components/ui/GlassBadge";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { QUICK_REPLIES } from "@/lib/ai/mock-engine";
+import { DEMO_COACH_PROMPT } from "@/lib/constants/demo";
 
 const PROMPTS = [
   "I'm feeling overwhelmed by my syllabus.",
@@ -25,6 +27,11 @@ export default function CoachPage() {
     setMsg("");
   };
 
+  const sendDemoPrompt = () => {
+    sendCoachMessage(DEMO_COACH_PROMPT);
+    setMsg("");
+  };
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader
@@ -37,6 +44,16 @@ export default function CoachPage() {
           {validationError}
         </div>
       )}
+
+      <GlassCard className="!p-4">
+        <p className="text-sm text-muted">Competition demo</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <GlassBadge variant="primary">PromptWars demo</GlassBadge>
+          <GlassButton variant="outline" size="sm" onClick={sendDemoPrompt}>
+            Try: “{DEMO_COACH_PROMPT}”
+          </GlassButton>
+        </div>
+      </GlassCard>
 
       <ErrorBoundary fallbackTitle="Coach unavailable">
         <GlassCard className="max-h-[60vh] space-y-4 overflow-y-auto">
@@ -64,6 +81,11 @@ export default function CoachPage() {
                   }`}
                   aria-label={m.role === "user" ? "You said" : "Coach said"}
                 >
+                  {m.role === "assistant" && (
+                    <span className="mb-1 block text-xs font-medium text-primary">
+                      AI Coach
+                    </span>
+                  )}
                   {m.content}
                 </div>
               </div>
@@ -72,7 +94,21 @@ export default function CoachPage() {
         </GlassCard>
 
         <div className="flex flex-wrap gap-2">
-          {[...QUICK_REPLIES.slice(0, 3), ...PROMPTS].slice(0, 5).map((p) => (
+          {QUICK_REPLIES.map((p, i) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => (i === 0 ? sendDemoPrompt() : setMsg(p))}
+              className={`rounded-full px-3 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-light ${
+                i === 0
+                  ? "bg-primary-subtle font-medium text-primary ring-1 ring-primary/20"
+                  : "bg-surface text-muted hover:bg-primary-subtle hover:text-primary"
+              }`}
+            >
+              {i === 0 ? `Demo: ${p}` : p}
+            </button>
+          ))}
+          {PROMPTS.map((p) => (
             <button
               key={p}
               type="button"

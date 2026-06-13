@@ -27,7 +27,14 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Click **Load Sample Week** on the dashboard to populate demo data for the competition pitch.
+Click **Load Sample Week** on the dashboard (Competition Pitch panel) to populate demo data for the competition pitch.
+
+## Judge quick-start (PromptWars)
+
+1. Open the dashboard — the **PromptWars Competition Pitch** panel lists all 8 requirements with checkmarks
+2. Click **Load Sample Week** to seed the Aarav demo persona
+3. Click **Start guided pitch** for a step-by-step walkthrough, or use **Show me** links per requirement
+4. See the full line-by-line challenge mapping in [CHALLENGE.md](./CHALLENGE.md)
 
 ## Scripts
 
@@ -62,6 +69,11 @@ MindMirror uses a `WellnessAIEngine` interface ([`src/lib/ai/engine.ts`](src/lib
 5. Coach → "I failed my mock" → empathetic response
 6. Action Plan → personalized items with checkboxes
 7. Burnout → animated meter with factor breakdown
+8. Analytics → full chart dashboard (30-day trends, heatmap, correlations)
+
+## Challenge alignment
+
+See [CHALLENGE.md](./CHALLENGE.md) for the line-by-line PromptWars requirement mapping and 2-minute judge script.
 
 ## Quality
 
