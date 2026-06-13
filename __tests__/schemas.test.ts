@@ -3,6 +3,7 @@ import {
   moodEntrySchema,
   journalEntrySchema,
   coachMessageSchema,
+  appDataSchema,
 } from "@/lib/validation/schemas";
 
 describe("moodEntrySchema", () => {
@@ -75,6 +76,36 @@ describe("coachMessageSchema", () => {
       role: "user",
       content: "",
       timestamp: new Date().toISOString(),
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("appDataSchema", () => {
+  it("accepts valid app data", () => {
+    const result = appDataSchema.safeParse({
+      moods: [],
+      journals: [],
+      coachMessages: [],
+      actionPlan: [],
+      settings: { examType: "JEE", userName: "Student" },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects too many moods", () => {
+    const moods = Array.from({ length: 1001 }, (_, i) => ({
+      id: `m-${i}`,
+      date: "2026-06-13",
+      mood: 3 as const,
+      triggers: [] as const[],
+    }));
+    const result = appDataSchema.safeParse({
+      moods,
+      journals: [],
+      coachMessages: [],
+      actionPlan: [],
+      settings: { examType: "JEE", userName: "Student" },
     });
     expect(result.success).toBe(false);
   });

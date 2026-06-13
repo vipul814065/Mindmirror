@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import type { TriggerPattern } from "@/types/wellness";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { buildTriggerPatternsSummary } from "@/lib/charts/summaries";
 
 interface TriggerChartProps {
   patterns: TriggerPattern[];
@@ -35,6 +36,7 @@ function TriggerChartComponent({ patterns }: TriggerChartProps) {
 
   return (
     <GlassCard ariaLabel="Stress trigger frequency chart">
+      <div className="sr-only">{buildTriggerPatternsSummary(patterns)}</div>
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
           <XAxis

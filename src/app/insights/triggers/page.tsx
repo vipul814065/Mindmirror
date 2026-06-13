@@ -1,16 +1,21 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import { useMemo } from "react";
 import { useApp } from "@/hooks/useAppStore";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { detectTriggerPatterns } from "@/lib/ai/mock-engine";
+import { loadChart } from "@/lib/charts/load-chart";
 import { Zap } from "lucide-react";
 
-const TriggerChart = dynamic(
-  () => import("@/components/charts/TriggerChart").then((m) => m.TriggerChart),
-  { ssr: false, loading: () => <div className="glass h-60 animate-pulse rounded-2xl" /> },
+const TriggerChart = loadChart(
+  () => import("@/components/charts/TriggerChart"),
+  "TriggerChart",
+);
+const StressBreakdownChart = loadChart(
+  () => import("@/components/charts/StressBreakdownChart"),
+  "StressBreakdownChart",
 );
 
 const CONFIDENCE_STYLES = {
@@ -21,22 +26,35 @@ const CONFIDENCE_STYLES = {
 
 export default function TriggersPage() {
   const { data } = useApp();
-  const patterns = detectTriggerPatterns(data.moods, data.journals);
+  const analytics = data.analytics;
+  const patterns = useMemo(
+    () => detectTriggerPatterns(data.moods, data.journals),
+    [data.moods, data.journals],
+  );
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
         title="Stress Trigger Detection"
         description="Automatically identified from your moods and journal entries."
       />
 
+      {analytics && (
+        <div>
+          <h2 className="mb-4 font-display text-lg font-semibold text-foreground">
+            Stress Trigger Breakdown
+          </h2>
+          <ErrorBoundary fallbackTitle="Chart unavailable">
+            <StressBreakdownChart data={analytics.stressTriggerBreakdown} />
+          </ErrorBoundary>
+        </div>
+      )}
+
       <ErrorBoundary fallbackTitle="Chart unavailable">
         <TriggerChart patterns={patterns} />
       </ErrorBoundary>
 
-      <h2 className="mb-3 mt-6 font-display text-lg font-semibold text-foreground">
-        Detected Patterns
-      </h2>
+      <h2 className="font-display text-lg font-semibold text-foreground">Detected Patterns</h2>
 
       {patterns.length === 0 ? (
         <GlassCard>
@@ -52,12 +70,8 @@ export default function TriggersPage() {
                 <div className="flex items-start gap-3">
                   <Zap className="mt-0.5 h-4 w-4 shrink-0 text-primary-light" aria-hidden="true" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {pattern.trigger}
-                    </p>
-                    <p className="mt-1 text-sm text-muted">
-                      {pattern.description}
-                    </p>
+                    <p className="text-sm font-medium text-foreground">{pattern.trigger}</p>
+                    <p className="mt-1 text-sm text-muted">{pattern.description}</p>
                     <p className="mt-1 text-xs text-subtle">
                       {pattern.count} occurrence{pattern.count !== 1 ? "s" : ""}
                     </p>

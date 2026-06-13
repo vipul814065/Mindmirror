@@ -1,6 +1,8 @@
 import type { AppData, AppSettings } from "@/types/wellness";
+import { appDataSchema } from "@/lib/validation/schemas";
 
 const STORAGE_KEY = "mindmirror-data";
+const MAX_IMPORT_BYTES = 512 * 1024;
 
 const DEFAULT_SETTINGS: AppSettings = {
   examType: "JEE",
@@ -22,8 +24,21 @@ export class StorageError extends Error {
   }
 }
 
+export class ImportError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ImportError";
+  }
+}
+
 export function getDefaultData(): AppData {
   return structuredClone(DEFAULT_DATA);
+}
+
+function validateAppData(data: unknown): AppData | null {
+  const result = appDataSchema.safeParse(data);
+  if (!result.success) return null;
+  return result.data;
 }
 
 export function loadAppData(): AppData {
@@ -35,12 +50,12 @@ export function loadAppData(): AppData {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return getDefaultData();
 
-    const parsed = JSON.parse(raw) as AppData;
-    return {
-      ...getDefaultData(),
-      ...parsed,
-      settings: { ...DEFAULT_SETTINGS, ...parsed.settings },
-    };
+    const parsed = JSON.parse(raw) as unknown;
+    const validated = validateAppData(parsed);
+    if (validated) return validated;
+
+    console.warn("MindMirror: stored data failed validation, using defaults.");
+    return getDefaultData();
   } catch {
     return getDefaultData();
   }
@@ -49,8 +64,11 @@ export function loadAppData(): AppData {
 export function saveAppData(data: AppData): void {
   if (typeof window === "undefined") return;
 
+  const validated = validateAppData(data);
+  const toSave = validated ?? data;
+
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
   } catch (error) {
     if (
       error instanceof DOMException &&
@@ -69,12 +87,23 @@ export function exportAppData(data: AppData): string {
 }
 
 export function importAppData(json: string): AppData {
-  const parsed = JSON.parse(json) as AppData;
-  return {
-    ...getDefaultData(),
-    ...parsed,
-    settings: { ...DEFAULT_SETTINGS, ...parsed.settings },
-  };
+  if (new TextEncoder().encode(json).length > MAX_IMPORT_BYTES) {
+    throw new ImportError("Import file is too large. Maximum size is 512KB.");
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    throw new ImportError("Invalid JSON format.");
+  }
+
+  const validated = validateAppData(parsed);
+  if (!validated) {
+    throw new ImportError("Data file failed validation. Check the format.");
+  }
+
+  return validated;
 }
 
 export function clearAppData(): void {

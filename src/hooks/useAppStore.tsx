@@ -12,7 +12,6 @@ import {
 import type {
   AppData,
   CoachMessage,
-  ExamType,
   JournalEntry,
   MoodEntry,
 } from "@/types/wellness";
@@ -24,17 +23,29 @@ import {
   exportAppData,
   importAppData,
   StorageError,
+  ImportError,
 } from "@/lib/storage/local-store";
 import { createSeedData } from "@/lib/ai/seed-data";
-import { moodEntrySchema, journalEntrySchema, coachMessageSchema } from "@/lib/validation/schemas";
-import { analyzeJournal, getCoachResponse } from "@/lib/ai/mock-engine";
-import { generateActionPlan } from "@/lib/ai/mock-engine";
+import {
+  moodEntrySchema,
+  journalEntrySchema,
+  coachMessageSchema,
+  appSettingsSchema,
+} from "@/lib/validation/schemas";
+import {
+  analyzeJournal,
+  getCoachResponse,
+  generateActionPlan,
+} from "@/lib/ai/mock-engine";
 import { calculateBurnoutScore, getTopTriggers } from "@/lib/scoring/burnout";
+import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
+import { sanitizeUserInput } from "@/lib/ai/safety";
 
 interface AppContextValue {
   data: AppData;
   isLoaded: boolean;
   storageError: string | null;
+  validationError: string | null;
   addMood: (entry: Omit<MoodEntry, "id">) => void;
   addJournal: (content: string) => void;
   sendCoachMessage: (content: string) => void;
@@ -45,10 +56,14 @@ interface AppContextValue {
   exportData: () => string;
   importData: (json: string) => void;
   clearData: () => void;
+  clearValidationError: () => void;
   burnoutScore: ReturnType<typeof calculateBurnoutScore>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
+
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 10;
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -58,112 +73,142 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<AppData>(getDefaultData);
   const [isLoaded, setIsLoaded] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     const loaded = loadAppData();
+    const isEmpty = loaded.moods.length === 0 && loaded.journals.length === 0;
+    const dataToUse = isEmpty ? createSeedData() : loaded;
     queueMicrotask(() => {
-      setData(loaded);
+      setData(dataToUse);
       setIsLoaded(true);
+      if (isEmpty) {
+        try {
+          saveAppData(dataToUse);
+        } catch {
+          // storage error handled on next persist
+        }
+      }
     });
   }, []);
 
-  const persist = useCallback((newData: AppData) => {
-    try {
-      saveAppData(newData);
-      setStorageError(null);
-      setData(newData);
-    } catch (error) {
-      if (error instanceof StorageError) {
-        setStorageError(error.message);
+  const persist = useCallback((updater: AppData | ((prev: AppData) => AppData)) => {
+    setData((prev) => {
+      const newData = typeof updater === "function" ? updater(prev) : updater;
+      try {
+        saveAppData(newData);
+        setStorageError(null);
+        return newData;
+      } catch (error) {
+        if (error instanceof StorageError) {
+          setStorageError(error.message);
+        }
+        return prev;
       }
-    }
+    });
   }, []);
 
-  const addMood = useCallback(
-    (entry: Omit<MoodEntry, "id">) => {
-      const mood: MoodEntry = { ...entry, id: generateId() };
-      const result = moodEntrySchema.safeParse(mood);
-      if (!result.success) return;
+  const addMood = useCallback((entry: Omit<MoodEntry, "id">) => {
+    const mood: MoodEntry = { ...entry, id: generateId() };
+    const result = moodEntrySchema.safeParse(mood);
+    if (!result.success) {
+      setValidationError(result.error.issues[0]?.message ?? "Invalid mood entry.");
+      return;
+    }
+    setValidationError(null);
+    persist((prev) => ({ ...prev, moods: [...prev.moods, mood] }));
+  }, [persist]);
 
-      const newData = { ...data, moods: [...data.moods, mood] };
-      persist(newData);
-    },
-    [data, persist],
-  );
+  const addJournal = useCallback((content: string) => {
+    if (!checkRateLimit("journal", RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) {
+      setValidationError("Please wait a moment before submitting another journal entry.");
+      return;
+    }
 
-  const addJournal = useCallback(
-    (content: string) => {
-      const analysis = analyzeJournal(content);
-      const journal: JournalEntry = {
-        id: generateId(),
-        date: new Date().toISOString().split("T")[0],
-        content,
-        analysis,
-      };
+    const sanitized = sanitizeUserInput(content, 5000);
+    const analysis = analyzeJournal(sanitized);
+    const journal: JournalEntry = {
+      id: generateId(),
+      date: new Date().toISOString().split("T")[0],
+      content: sanitized,
+      analysis,
+    };
 
-      const result = journalEntrySchema.safeParse(journal);
-      if (!result.success) return;
+    const result = journalEntrySchema.safeParse(journal);
+    if (!result.success) {
+      setValidationError(result.error.issues[0]?.message ?? "Invalid journal entry.");
+      return;
+    }
+    setValidationError(null);
+    persist((prev) => ({ ...prev, journals: [journal, ...prev.journals] }));
+  }, [persist]);
 
-      const newData = { ...data, journals: [journal, ...data.journals] };
-      persist(newData);
-    },
-    [data, persist],
-  );
+  const sendCoachMessage = useCallback((content: string) => {
+    if (!checkRateLimit("coach", RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) {
+      setValidationError("Please wait a moment before sending another message.");
+      return;
+    }
 
-  const sendCoachMessage = useCallback(
-    (content: string) => {
-      const userMsg: CoachMessage = {
-        id: generateId(),
-        role: "user",
-        content,
-        timestamp: new Date().toISOString(),
-      };
+    const sanitized = sanitizeUserInput(content, 2000);
+    const userMsg: CoachMessage = {
+      id: generateId(),
+      role: "user",
+      content: sanitized,
+      timestamp: new Date().toISOString(),
+    };
 
-      if (!coachMessageSchema.safeParse(userMsg).success) return;
+    const userResult = coachMessageSchema.safeParse(userMsg);
+    if (!userResult.success) {
+      setValidationError(userResult.error.issues[0]?.message ?? "Invalid message.");
+      return;
+    }
 
-      const response = getCoachResponse(content);
+    setValidationError(null);
+    persist((prev) => {
+      const response = getCoachResponse(sanitized, prev.settings.examType);
       const assistantMsg: CoachMessage = {
         id: generateId(),
         role: "assistant",
         content: response,
         timestamp: new Date().toISOString(),
       };
-
-      const newData = {
-        ...data,
-        coachMessages: [...data.coachMessages, userMsg, assistantMsg],
+      return {
+        ...prev,
+        coachMessages: [...prev.coachMessages, userMsg, assistantMsg],
       };
-      persist(newData);
-    },
-    [data, persist],
-  );
+    });
+  }, [persist]);
 
-  const toggleActionItem = useCallback(
-    (id: string) => {
-      const newPlan = data.actionPlan.map((item) =>
+  const toggleActionItem = useCallback((id: string) => {
+    persist((prev) => ({
+      ...prev,
+      actionPlan: prev.actionPlan.map((item) =>
         item.id === id ? { ...item, completed: !item.completed } : item,
-      );
-      persist({ ...data, actionPlan: newPlan });
-    },
-    [data, persist],
-  );
+      ),
+    }));
+  }, [persist]);
 
   const regenerateActionPlan = useCallback(() => {
-    const burnout = calculateBurnoutScore(data.moods, data.journals);
-    const triggers = getTopTriggers(data.moods, data.journals);
-    const plan = generateActionPlan(burnout.score, triggers);
-    persist({ ...data, actionPlan: plan });
-  }, [data, persist]);
+    persist((prev) => {
+      const burnout = calculateBurnoutScore(prev.moods, prev.journals);
+      const triggers = getTopTriggers(prev.moods, prev.journals);
+      const plan = generateActionPlan(burnout.score, triggers);
+      return { ...prev, actionPlan: plan };
+    });
+  }, [persist]);
 
-  const updateSettings = useCallback(
-    (settings: Partial<AppData["settings"]>) => {
-      persist({
-        ...data,
-        settings: { ...data.settings, ...settings },
-      });
-    },
-    [data, persist],
-  );
+  const updateSettings = useCallback((settings: Partial<AppData["settings"]>) => {
+    persist((prev) => {
+      const merged = { ...prev.settings, ...settings };
+      const result = appSettingsSchema.safeParse(merged);
+      if (!result.success) {
+        setValidationError(result.error.issues[0]?.message ?? "Invalid settings.");
+        return prev;
+      }
+      setValidationError(null);
+      return { ...prev, settings: result.data };
+    });
+  }, [persist]);
 
   const loadSampleData = useCallback(() => {
     persist(createSeedData());
@@ -175,8 +220,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     (json: string) => {
       try {
         persist(importAppData(json));
-      } catch {
-        setStorageError("Invalid data file. Please check the format.");
+        setValidationError(null);
+      } catch (error) {
+        if (error instanceof ImportError) {
+          setStorageError(error.message);
+        } else {
+          setStorageError("Invalid data file. Please check the format.");
+        }
       }
     },
     [persist],
@@ -184,7 +234,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const clearDataFn = useCallback(() => {
     clearAppData();
+    resetRateLimit();
     setData(getDefaultData());
+    setStorageError(null);
+    setValidationError(null);
+  }, []);
+
+  const clearValidationError = useCallback(() => {
+    setValidationError(null);
   }, []);
 
   const burnoutScore = useMemo(
@@ -197,6 +254,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       data,
       isLoaded,
       storageError,
+      validationError,
       addMood,
       addJournal,
       sendCoachMessage,
@@ -207,12 +265,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       exportData: exportDataFn,
       importData: importDataFn,
       clearData: clearDataFn,
+      clearValidationError,
       burnoutScore,
     }),
     [
       data,
       isLoaded,
       storageError,
+      validationError,
       addMood,
       addJournal,
       sendCoachMessage,
@@ -223,6 +283,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       exportDataFn,
       importDataFn,
       clearDataFn,
+      clearValidationError,
       burnoutScore,
     ],
   );
@@ -236,6 +297,6 @@ export function useApp(): AppContextValue {
   return ctx;
 }
 
-export function useExamType(): ExamType {
-  return useApp().data.settings.examType;
+export function useAppData(): AppData {
+  return useApp().data;
 }

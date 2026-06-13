@@ -75,6 +75,52 @@ export interface TriggerPattern {
 export interface AppSettings {
   examType: ExamType;
   userName: string;
+  age?: number;
+  goal?: string;
+  studyHoursPerDay?: number;
+  streakDays?: number;
+}
+
+export interface DemoNotification {
+  id: string;
+  title: string;
+  message: string;
+  time: string;
+  read: boolean;
+}
+
+export interface DemoActivity {
+  id: string;
+  type: string;
+  message: string;
+  time: string;
+}
+
+export interface DemoAnalytics {
+  wellnessScore: number;
+  burnoutRiskPercent: number;
+  focusScore: number;
+  stressLevel: "Low" | "Medium" | "High";
+  sleepQuality: number;
+  confidenceScore: number;
+  moodTrend30Day: { date: string; mood: number; label?: string }[];
+  burnoutHistory: { date: string; score: number }[];
+  weeklyProductivity: { week: string; score: number }[];
+  sleepPerformance: { date: string; sleep: number; performance: number }[];
+  confidenceGrowth: { date: string; score: number }[];
+  studyHoursHeatmap: { date: string; hours: number }[];
+  stressTriggerBreakdown: { trigger: string; percentage: number }[];
+  weeklyProgress: {
+    studyHours: number;
+    completedTopics: number;
+    mockTests: number;
+    stressReduction: number;
+    confidenceGrowth: number;
+  };
+  aiInsights: string[];
+  recommendations: string[];
+  notifications: DemoNotification[];
+  activityFeed: DemoActivity[];
 }
 
 export interface AppData {
@@ -83,4 +129,5 @@ export interface AppData {
   coachMessages: CoachMessage[];
   actionPlan: ActionPlanItem[];
   settings: AppSettings;
+  analytics?: DemoAnalytics;
 }

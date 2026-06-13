@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 interface AnimatedCounterProps {
@@ -10,7 +10,7 @@ interface AnimatedCounterProps {
   className?: string;
 }
 
-export function AnimatedCounter({
+function AnimatedCounterComponent({
   value,
   suffix = "",
   duration = 1,
@@ -23,7 +23,7 @@ export function AnimatedCounter({
     if (prefersReducedMotion) return;
 
     let start = 0;
-    const step = value / (duration * 60);
+    const step = value / (duration * 30);
     const interval = setInterval(() => {
       start += step;
       if (start >= value) {
@@ -32,7 +32,7 @@ export function AnimatedCounter({
       } else {
         setDisplay(Math.round(start));
       }
-    }, 1000 / 60);
+    }, 1000 / 30);
 
     return () => clearInterval(interval);
   }, [value, duration, prefersReducedMotion]);
@@ -42,7 +42,6 @@ export function AnimatedCounter({
   return (
     <motion.span
       className={className}
-      key={shown}
       initial={{ opacity: 0.5 }}
       animate={{ opacity: 1 }}
     >
@@ -51,3 +50,5 @@ export function AnimatedCounter({
     </motion.span>
   );
 }
+
+export const AnimatedCounter = memo(AnimatedCounterComponent);

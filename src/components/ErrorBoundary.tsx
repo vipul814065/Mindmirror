@@ -11,21 +11,31 @@ interface Props {
 
 interface State {
   hasError: boolean;
+  resetKey: number;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, resetKey: 0 };
   }
 
-  static getDerivedStateFromError(): State {
+  static getDerivedStateFromError(): Partial<State> {
     return { hasError: true };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("ErrorBoundary caught:", error, info);
+    if (process.env.NODE_ENV !== "production") {
+      console.error("ErrorBoundary caught:", error, info);
+    }
   }
+
+  handleRetry = () => {
+    this.setState((prev) => ({
+      hasError: false,
+      resetKey: prev.resetKey + 1,
+    }));
+  };
 
   render() {
     if (this.state.hasError) {
@@ -34,20 +44,18 @@ export class ErrorBoundary extends Component<Props, State> {
           className="glass flex flex-col items-center gap-4 rounded-2xl p-8 text-center"
           role="alert"
         >
-          <AlertTriangle className="h-10 w-10 text-amber-400" aria-hidden="true" />
+          <AlertTriangle className="h-10 w-10 text-amber-600" aria-hidden="true" />
           <h2 className="text-lg font-semibold text-foreground">
             {this.props.fallbackTitle ?? "Something went wrong"}
           </h2>
           <p className="text-sm text-muted">
             This section encountered an error. Try refreshing the page.
           </p>
-          <GlassButton onClick={() => this.setState({ hasError: false })}>
-            Try Again
-          </GlassButton>
+          <GlassButton onClick={this.handleRetry}>Try Again</GlassButton>
         </div>
       );
     }
 
-    return this.props.children;
+    return <div key={this.state.resetKey}>{this.props.children}</div>;
   }
 }

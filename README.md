@@ -36,11 +36,22 @@ Click **Load Sample Week** on the dashboard to populate demo data for the compet
 | `npm run dev` | Start development server |
 | `npm run build` | Production build |
 | `npm test` | Run Vitest test suite |
+| `npm run test:coverage` | Run tests with coverage thresholds |
 | `npm run lint` | ESLint check |
 
 ## Data Storage
 
 All data is stored in browser `localStorage` — no backend or API keys required. AI features use a rule-based mock engine with realistic exam-student language.
+
+**Privacy note:** Data is stored as plain text in your browser. On shared devices, export and clear data when finished.
+
+## AI Architecture
+
+MindMirror uses a `WellnessAIEngine` interface ([`src/lib/ai/engine.ts`](src/lib/ai/engine.ts)) with a mock implementation today. To swap in a real LLM later:
+
+1. Implement `WellnessAIEngine` with server-side API routes
+2. Keep `sanitizeUserInput` / `validateAIOutput` from [`src/lib/ai/safety.ts`](src/lib/ai/safety.ts)
+3. Replace `mockEngine` export in `engine.ts` — UI code stays unchanged
 
 ## Demo Flow
 

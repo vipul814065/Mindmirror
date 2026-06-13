@@ -24,4 +24,33 @@ describe("MoodPicker", () => {
     render(<MoodPicker value={3} onChange={() => {}} />);
     expect(screen.getByLabelText("Okay, level 3 of 5")).toHaveAttribute("aria-checked", "true");
   });
+
+  it("supports arrow key navigation", async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(<MoodPicker value={3} onChange={onChange} />);
+
+    const okay = screen.getByLabelText("Okay, level 3 of 5");
+    okay.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(onChange).toHaveBeenCalledWith(4);
+  });
+
+  it("supports home and end keys", async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(<MoodPicker value={3} onChange={onChange} />);
+
+    const okay = screen.getByLabelText("Okay, level 3 of 5");
+    okay.focus();
+    await user.keyboard("{Home}");
+    expect(onChange).toHaveBeenCalledWith(1);
+    await user.keyboard("{End}");
+    expect(onChange).toHaveBeenCalledWith(5);
+  });
+
+  it("getMoodDisplay returns mood metadata", async () => {
+    const { getMoodDisplay } = await import("@/components/ui/MoodPicker");
+    expect(getMoodDisplay(5).label).toBe("Great");
+  });
 });

@@ -75,6 +75,25 @@ describe("generateWeeklyInsight", () => {
     const insight = generateWeeklyInsight(moods, []);
     expect(insight.patterns.some((p) => p.includes("mock test"))).toBe(true);
   });
+
+  it("detects declining mood trend", () => {
+    const today = new Date();
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 10);
+    const moods: MoodEntry[] = [
+      { id: "1", date: today.toISOString().split("T")[0], mood: 1, triggers: [] },
+      { id: "2", date: weekAgo.toISOString().split("T")[0], mood: 5, triggers: [] },
+    ];
+    const insight = generateWeeklyInsight(moods, []);
+    expect(insight.moodTrend).toBe("declining");
+  });
+
+  it("uses demo analytics insights when provided", () => {
+    const insight = generateWeeklyInsight([], [], {
+      aiInsights: ["Custom demo insight"],
+    } as never);
+    expect(insight.patterns).toContain("Custom demo insight");
+  });
 });
 
 describe("detectTriggers", () => {
